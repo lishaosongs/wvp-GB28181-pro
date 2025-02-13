@@ -1,0 +1,42 @@
+name: Build Nmp CI
+
+on:
+  push:
+    branches:
+      - main # 触发分支，可根据需要修改
+  workflow_dispatch: # 手动触发选项
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 安装依赖
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jre git maven nodejs npm
+
+      # 安装 Node.js 包并构建
+      - name: Navigate to /web_src/ and install npm packages
+        working-directory: ./web_src
+        run: |
+          npm --registry=https://registry.npmmirror.com install
+          npm run build
+
+      # 压缩 src/main/ 目录
+      - name: Compress src/main/ directory
+        working-directory: ./
+        run: |
+          tar -czf main.tar.gz src/main/
+
+      # 提供压缩包下载
+      - name: Upload artifact for download
+        uses: actions/upload-artifact@v3
+        with:
+          name: main-package
+          path: main.tar.gz
