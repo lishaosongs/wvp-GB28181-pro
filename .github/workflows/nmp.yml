@@ -25,7 +25,7 @@ jobs:
       - name: Navigate to /web_src/ and install npm packages
         working-directory: ./web_src
         run: |
-          npm --registry=https://registry.npmmirror.com install
+          npm install
           npm run build
 
       # 压缩 src/main/ 目录
