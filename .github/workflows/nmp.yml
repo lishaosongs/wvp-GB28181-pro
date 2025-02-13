@@ -32,7 +32,7 @@ jobs:
       - name: Compress src/main/ directory
         working-directory: ./
         run: |
-          tar -czf main.tar.gz src/main/
+          tar -czf main.tar.gz src/main/resourcesstatic/
 
       # 提供压缩包下载
       - name: Upload artifact for download
