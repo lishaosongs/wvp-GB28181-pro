@@ -36,7 +36,7 @@ jobs:
 
       # 提供压缩包下载
       - name: Upload artifact for download
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: main-package
           path: main.tar.gz
