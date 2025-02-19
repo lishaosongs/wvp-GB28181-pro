@@ -1,0 +1,39 @@
+name: Build war CI
+
+on:
+  push:
+    branches:
+      - main  # 触发分支可以根据需要调整
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: 安装依赖
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jre git maven
+
+      # Step 3: 执行 mvn package
+      - name: Build project with Maven
+        run: mvn package -P war
+
+      # Step 4: 压缩 target 目录
+      - name: Compress target directory
+        run: |
+          cd target
+          zip -r ../target-artifact.zip .
+
+      # Step 5: 提供下载链接
+      - name: Upload artifact for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: target-artifact
+          path: target-artifact.zip
