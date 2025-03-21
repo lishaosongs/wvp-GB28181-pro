@@ -9,8 +9,11 @@ import com.genersoft.iot.vmp.gb28181.dao.PlatformChannelMapper;
 import com.genersoft.iot.vmp.gb28181.dao.RegionMapper;
 import com.genersoft.iot.vmp.gb28181.event.EventPublisher;
 import com.genersoft.iot.vmp.gb28181.event.subscribe.catalog.CatalogEvent;
+import com.genersoft.iot.vmp.gb28181.service.IDeviceChannelService;
 import com.genersoft.iot.vmp.gb28181.service.IGbChannelService;
 import com.genersoft.iot.vmp.gb28181.service.IPlatformChannelService;
+import com.genersoft.iot.vmp.service.bean.ErrorCallback;
+import com.genersoft.iot.vmp.service.bean.GPSMsgInfo;
 import com.genersoft.iot.vmp.streamPush.bean.StreamPush;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.vmanager.bean.ErrorCode;
@@ -23,7 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
-import java.util.*;
+import javax.sip.message.Response;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -46,6 +53,9 @@ public class GbChannelServiceImpl implements IGbChannelService {
 
     @Autowired
     private GroupMapper groupMapper;
+
+    @Autowired
+    private IDeviceChannelService deviceChannelService;
 
     @Override
     public CommonGBChannel queryByDeviceId(String gbDeviceId) {
@@ -707,11 +717,6 @@ public class GbChannelServiceImpl implements IGbChannelService {
     }
 
     @Override
-    public void updateGpsByDeviceIdForStreamPush(List<CommonGBChannel> channels) {
-        commonGBChannelMapper.updateGpsByDeviceIdForStreamPush(ChannelDataType.STREAM_PUSH.value, channels);
-    }
-
-    @Override
     public PageInfo<CommonGBChannel> queryList(int page, int count, String query, Boolean online, Boolean hasRecordPlan, Integer channelType) {
         PageHelper.startPage(page, count);
         if (query != null) {
@@ -721,5 +726,79 @@ public class GbChannelServiceImpl implements IGbChannelService {
         }
         List<CommonGBChannel> all = commonGBChannelMapper.queryList(query, online,  hasRecordPlan, channelType);
         return new PageInfo<>(all);
+    }
+
+    @Override
+    public void queryRecordInfo(CommonGBChannel channel, String startTime, String endTime, ErrorCallback<RecordInfo> callback) {
+        if (channel.getDataType() == ChannelDataType.GB28181.value) {
+            deviceChannelService.queryRecordInfo(channel, startTime, endTime, callback);
+        } else if (channel.getDataType() == ChannelDataType.STREAM_PROXY.value) {
+            // 拉流代理
+            log.warn("[下载通用通道录像] 不支持下载拉流代理的录像： {}({})", channel.getGbName(), channel.getGbDeviceId());
+            throw new PlayException(Response.FORBIDDEN, "forbidden");
+        } else if (channel.getDataType() == ChannelDataType.STREAM_PUSH.value) {
+            // 推流
+            log.warn("[下载通用通道录像] 不支持下载推流的录像： {}({})", channel.getGbName(), channel.getGbDeviceId());
+            throw new PlayException(Response.FORBIDDEN, "forbidden");
+        } else {
+            // 通道数据异常
+            log.error("[回放通用通道] 通道数据异常，无法识别通道来源： {}({})", channel.getGbName(), channel.getGbDeviceId());
+            throw new PlayException(Response.SERVER_INTERNAL_ERROR, "server internal error");
+        }
+    }
+
+    @Override
+    public PageInfo<CommonGBChannel> queryListByCivilCodeForUnusual(int page, int count, String query, Boolean online, Integer channelType) {
+        PageHelper.startPage(page, count);
+        if (query != null) {
+            query = query.replaceAll("/", "//")
+                    .replaceAll("%", "/%")
+                    .replaceAll("_", "/_");
+        }
+        List<CommonGBChannel> all = commonGBChannelMapper.queryListByCivilCodeForUnusual(query, online, channelType);
+        return new PageInfo<>(all);
+    }
+
+    @Override
+    public void clearChannelCivilCode(Boolean all, List<Integer> channelIds) {
+
+        List<Integer> channelIdsForClear;
+        if (all != null && all) {
+            channelIdsForClear = commonGBChannelMapper.queryAllForUnusualCivilCode();
+        }else {
+            channelIdsForClear = channelIds;
+        }
+        commonGBChannelMapper.removeCivilCodeByChannelIds(channelIdsForClear);
+    }
+
+    @Override
+    public PageInfo<CommonGBChannel> queryListByParentForUnusual(int page, int count, String query, Boolean online, Integer channelType) {
+        PageHelper.startPage(page, count);
+        if (query != null) {
+            query = query.replaceAll("/", "//")
+                    .replaceAll("%", "/%")
+                    .replaceAll("_", "/_");
+        }
+        List<CommonGBChannel> all = commonGBChannelMapper.queryListByParentForUnusual(query, online, channelType);
+        return new PageInfo<>(all);
+    }
+
+    @Override
+    public void clearChannelParent(Boolean all, List<Integer> channelIds) {
+        List<Integer> channelIdsForClear;
+        if (all != null && all) {
+            channelIdsForClear = commonGBChannelMapper.queryAllForUnusualParent();
+        }else {
+            channelIdsForClear = channelIds;
+        }
+        commonGBChannelMapper.removeParentIdByChannelIds(channelIdsForClear);
+    }
+
+    @Override
+    public void updateGPSFromGPSMsgInfo(List<GPSMsgInfo> gpsMsgInfoList) {
+        if (gpsMsgInfoList == null || gpsMsgInfoList.isEmpty()) {
+            return;
+        }
+        commonGBChannelMapper.updateGpsByDeviceId(gpsMsgInfoList);
     }
 }

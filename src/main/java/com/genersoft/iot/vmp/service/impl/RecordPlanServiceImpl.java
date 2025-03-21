@@ -79,7 +79,6 @@ public class RecordPlanServiceImpl implements IRecordPlanService {
 
     Map<Integer, StreamInfo> recordStreamMap = new HashMap<>();
 
-//    @Scheduled(cron = "0 */30 * * * *")
     @Scheduled(fixedRate = 10, timeUnit = TimeUnit.MINUTES)
     public void execution() {
         log.info("[录制计划] 执行");
@@ -89,7 +88,8 @@ public class RecordPlanServiceImpl implements IRecordPlanService {
         if (startChannelIdList.isEmpty()) {
             // 当前没有录像任务, 如果存在旧的正在录像的就移除
             if(!recordStreamMap.isEmpty()) {
-                stopStreams(recordStreamMap.keySet(), recordStreamMap);
+                Set<Integer> recordStreamSet = new HashSet<>(recordStreamMap.keySet());
+                stopStreams(recordStreamSet, recordStreamMap);
                 recordStreamMap.clear();
             }
         }else {

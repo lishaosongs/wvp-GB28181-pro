@@ -141,6 +141,56 @@ public class CommonChannelController {
         return channelService.queryListByCivilCode(page, count, query, online, channelType, civilCode);
     }
 
+
+    @Operation(summary = "存在行政区划但无法挂载的通道列表", security = @SecurityRequirement(name = JwtUtils.HEADER))
+    @Parameter(name = "page", description = "当前页", required = true)
+    @Parameter(name = "count", description = "每页查询数量", required = true)
+    @Parameter(name = "query", description = "查询内容")
+    @Parameter(name = "online", description = "是否在线")
+    @Parameter(name = "channelType", description = "通道类型， 0：国标设备，1：推流设备，2：拉流代理")
+    @GetMapping("/civilCode/unusual/list")
+    public PageInfo<CommonGBChannel> queryListByCivilCodeForUnusual(int page, int count,
+                                                          @RequestParam(required = false) String query,
+                                                          @RequestParam(required = false) Boolean online,
+                                                          @RequestParam(required = false) Integer channelType){
+        if (ObjectUtils.isEmpty(query)){
+            query = null;
+        }
+        return channelService.queryListByCivilCodeForUnusual(page, count, query, online, channelType);
+    }
+
+
+    @Operation(summary = "存在父节点编号但无法挂载的通道列表", security = @SecurityRequirement(name = JwtUtils.HEADER))
+    @Parameter(name = "page", description = "当前页", required = true)
+    @Parameter(name = "count", description = "每页查询数量", required = true)
+    @Parameter(name = "query", description = "查询内容")
+    @Parameter(name = "online", description = "是否在线")
+    @Parameter(name = "channelType", description = "通道类型， 0：国标设备，1：推流设备，2：拉流代理")
+    @GetMapping("/parent/unusual/list")
+    public PageInfo<CommonGBChannel> queryListByParentForUnusual(int page, int count,
+                                                          @RequestParam(required = false) String query,
+                                                          @RequestParam(required = false) Boolean online,
+                                                          @RequestParam(required = false) Integer channelType){
+        if (ObjectUtils.isEmpty(query)){
+            query = null;
+        }
+        return channelService.queryListByParentForUnusual(page, count, query, online, channelType);
+    }
+
+    @Operation(summary = "清除存在行政区划但无法挂载的通道列表", security = @SecurityRequirement(name = JwtUtils.HEADER))
+    @Parameter(name = "param", description = "清理参数， all为true清理所有异常数据。 否则按照传入的设备Id清理", required = true)
+    @PostMapping("/civilCode/unusual/clear")
+    public void clearChannelCivilCode(@RequestBody ChannelToRegionParam param){
+        channelService.clearChannelCivilCode(param.getAll(), param.getChannelIds());
+    }
+
+    @Operation(summary = "清除存在分组节点但无法挂载的通道列表", security = @SecurityRequirement(name = JwtUtils.HEADER))
+    @Parameter(name = "param", description = "清理参数， all为true清理所有异常数据。 否则按照传入的设备Id清理", required = true)
+    @PostMapping("/parent/unusual/clear")
+    public void clearChannelParent(@RequestBody ChannelToRegionParam param){
+        channelService.clearChannelParent(param.getAll(), param.getChannelIds());
+    }
+
     @Operation(summary = "获取关联业务分组通道列表", security = @SecurityRequirement(name = JwtUtils.HEADER))
     @Parameter(name = "page", description = "当前页", required = true)
     @Parameter(name = "count", description = "每页查询数量", required = true)
@@ -246,7 +296,7 @@ public class CommonChannelController {
                         } catch (MalformedURLException e) {
                             host=request.getLocalAddr();
                         }
-                        streamInfo.channgeStreamIp(host);
+                        streamInfo.changeStreamIp(host);
                     }
                     if (!ObjectUtils.isEmpty(streamInfo.getMediaServer().getTranscodeSuffix())
                             && !"null".equalsIgnoreCase(streamInfo.getMediaServer().getTranscodeSuffix())) {

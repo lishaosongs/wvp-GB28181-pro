@@ -140,8 +140,6 @@ public class MediaServiceImpl implements IMediaService {
                 result.setEnable_mp4(userSetting.getRecordSip());
             }
 
-            result.setEnable_mp4(inviteInfo.getRecord());
-
             // 单端口模式下修改流 ID
             if (!mediaServer.isRtpEnable() && inviteInfo == null) {
                 String ssrc = String.format("%010d", Long.parseLong(stream, 16));
@@ -175,9 +173,9 @@ public class MediaServiceImpl implements IMediaService {
                 if (ssrcTransaction.getType() == InviteSessionType.DOWNLOAD) {
                     // 获取录像的总时长，然后设置为这个视频的时长
                     InviteInfo inviteInfoForDownload = inviteStreamService.getInviteInfo(InviteSessionType.DOWNLOAD,  channelId, stream);
-                    if (inviteInfoForDownload != null && inviteInfoForDownload.getStreamInfo() != null) {
-                        String startTime = inviteInfoForDownload.getStreamInfo().getStartTime();
-                        String endTime = inviteInfoForDownload.getStreamInfo().getEndTime();
+                    if (inviteInfoForDownload != null) {
+                        String startTime = inviteInfoForDownload.getStartTime();
+                        String endTime = inviteInfoForDownload.getEndTime();
                         long difference = DateUtil.getDifference(startTime, endTime) / 1000;
                         result.setMp4_max_second((int) difference);
                         result.setEnable_mp4(true);

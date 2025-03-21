@@ -58,7 +58,10 @@ public interface PlatformChannelMapper {
             "where dc.channel_type = 0 and dc.channel_id = #{channelId} and pgc.platform_id=#{platformId}")
     List<Device> queryDeviceInfoByPlatformIdAndChannelId(@Param("platformId") String platformId, @Param("channelId") String channelId);
 
-    @Select("SELECT pgc.* from wvp_platform_channel pgc left join wvp_device_channel dc on dc.id = pgc.device_channel_id WHERE  dc.channel_type = 0 and dc.device_id=#{channelId}")
+    @Select(" SELECT wp.* from wvp_platform_channel pgc " +
+            " left join wvp_device_channel dc on dc.id = pgc.device_channel_id " +
+            " left join  wvp_platform wp on wp.id = pgc.platform_id" +
+            " WHERE  dc.channel_type = 0 and dc.device_id=#{channelId}")
     List<Platform> queryParentPlatformByChannelId(@Param("channelId") String channelId);
 
     @Select("<script>" +
@@ -259,6 +262,10 @@ public interface PlatformChannelMapper {
             "    wdc.data_device_id,\n" +
             "    wdc.create_time,\n" +
             "    wdc.update_time,\n" +
+            "    wdc.gps_altitude,\n" +
+            "    wdc.gps_speed,\n" +
+            "    wdc.gps_direction,\n" +
+            "    wdc.gps_time,\n" +
             "    coalesce(wpgc.custom_device_id, wdc.gb_device_id, wdc.device_id) as gb_device_id,\n" +
             "    coalesce(wpgc.custom_name, wdc.gb_name, wdc.name) as gb_name,\n" +
             "    coalesce(wpgc.custom_manufacturer, wdc.gb_manufacturer, wdc.manufacturer) as gb_manufacturer,\n" +
