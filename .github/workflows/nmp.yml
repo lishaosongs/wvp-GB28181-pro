@@ -1,10 +1,10 @@
-name: Build Nmp CI
+name: Build Web CI
 
 on:
   push:
     branches:
-      - main # 触发分支，可根据需要修改
-  workflow_dispatch: # 手动触发选项
+      - main  # 触发分支，可根据需要修改
+  workflow_dispatch:  # 手动触发选项
 
 jobs:
   build-and-package:
@@ -13,30 +13,29 @@ jobs:
     steps:
       # 检出代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # 使用最新版本
 
-      # 安装依赖
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-11-jre git maven nodejs npm
+      # 安装 Node.js（项目中使用 20.x，与官方配置一致）
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
 
-      # 安装 Node.js 包并构建
-      - name: Navigate to /web/ and install npm packages
+      # 安装依赖并构建前端
+      - name: Install dependencies and build
         working-directory: ./web
         run: |
-          npm install
-          npm run build
+          npm install --registry=https://registry.npmmirror.com  # 使用国内镜像加速
+          npm run build:prod  # 修正为正确的构建命令
 
-      # 压缩 src/main/ 目录
-      - name: Compress src/main/ directory
-        working-directory: ./
+      # 压缩构建结果（路径修正：补充静态目录斜杠）
+      - name: Compress build artifacts
         run: |
-          tar -czf main.tar.gz src/main/resourcesstatic/
+          tar -czf web-dist.tar.gz src/main/resources/static/
 
-      # 提供压缩包下载
-      - name: Upload artifact for download
+      # 上传构建产物
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: main-package
-          path: main.tar.gz
+          name: web-dist
+          path: web-dist.tar.gz
