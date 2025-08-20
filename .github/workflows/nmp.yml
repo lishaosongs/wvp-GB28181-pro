@@ -22,8 +22,8 @@ jobs:
           sudo apt-get install -y openjdk-11-jre git maven nodejs npm
 
       # 安装 Node.js 包并构建
-      - name: Navigate to /web_src/ and install npm packages
-        working-directory: ./web_src
+      - name: Navigate to /web/ and install npm packages
+        working-directory: ./web
         run: |
           npm install
           npm run build
