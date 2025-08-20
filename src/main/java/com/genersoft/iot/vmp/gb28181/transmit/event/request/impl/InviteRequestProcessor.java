@@ -161,7 +161,7 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                     log.error("[命令发送失败] 上级Invite TRYING: {}", e.getMessage());
                 }
 
-                channelPlayService.start(channel, inviteInfo, platform, ((code, msg, streamInfo) -> {
+                channelPlayService.startInvite(channel, inviteInfo, platform, ((code, msg, streamInfo) -> {
                     if (code != InviteErrorCode.SUCCESS.getCode()) {
                         try {
                             responseAck(request, Response.BUSY_HERE , msg);
@@ -172,10 +172,13 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                         // 点播成功， TODO 可以在此处检测cancel命令是否存在，存在则不发送
                         if (userSetting.getUseCustomSsrcForParentInvite()) {
                             // 上级平台点播时不使用上级平台指定的ssrc，使用自定义的ssrc，参考国标文档-点播外域设备媒体流SSRC处理方式
-                            String ssrc = "Play".equalsIgnoreCase(inviteInfo.getSessionName())
+                            MediaServer mediaServer = mediaServerService.getOne(streamInfo.getMediaServer().getId());
+                            if (mediaServer != null) {
+                                String ssrc = "Play".equalsIgnoreCase(inviteInfo.getSessionName())
                                         ? ssrcFactory.getPlaySsrc(streamInfo.getMediaServer().getId())
-                                    : ssrcFactory.getPlayBackSsrc(streamInfo.getMediaServer().getId());
-                            inviteInfo.setSsrc(ssrc);
+                                        : ssrcFactory.getPlayBackSsrc(streamInfo.getMediaServer().getId());
+                                inviteInfo.setSsrc(ssrc);
+                            }
                         }
                         // 构建sendRTP内容
                         SendRtpInfo sendRtpItem = sendRtpServerService.createSendRtpInfo(streamInfo.getMediaServer(),
@@ -241,6 +244,13 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
         }catch (PlayException e) {
             try {
                 responseAck(request, e.getCode(), e.getMsg());
+            } catch (SipException | InvalidArgumentException | ParseException sendException) {
+                log.error("[命令发送失败] invite 点播失败: {}", sendException.getMessage());
+            }
+        }catch (Exception e) {
+            log.error("[Invite处理异常] ", e);
+            try {
+                responseAck(request, Response.SERVER_INTERNAL_ERROR, "");
             } catch (SipException | InvalidArgumentException | ParseException sendException) {
                 log.error("[命令发送失败] invite 点播失败: {}", sendException.getMessage());
             }
@@ -628,8 +638,13 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                     request.getCallIdHeader().getCallId(), sendRtpItem.getApp(), sendRtpItem.getStream(), sendRtpItem.getSsrc(), sendRtpItem.getMediaServerId(), sipResponse, InviteSessionType.BROADCAST);
             sessionManager.put(ssrcTransaction);
             // 开启发流，大华在收到200OK后就会开始建立连接
-            if (!device.isBroadcastPushAfterAck()) {
-                log.info("[语音喊话] 回复200OK后发现 BroadcastPushAfterAck为False，现在开始推流");
+            if (sendRtpItem.isTcpActive() || !device.isBroadcastPushAfterAck()) {
+                if (sendRtpItem.isTcpActive()) {
+                    log.info("[语音喊话] 监听端口等待设备连接后推流");
+                }else {
+                    log.info("[语音喊话] 回复200OK后发现 BroadcastPushAfterAck为False，现在开始推流");
+                }
+
                 playService.startPushStream(sendRtpItem, channel, sipResponse, parentPlatform, request.getCallIdHeader());
             }
 

@@ -296,14 +296,14 @@ public class PlatformChannelServiceImpl implements IPlatformChannelService {
     @Override
     @Transactional
     public void addChannelByDevice(Integer platformId, List<Integer> deviceIds) {
-        List<Integer> channelList = commonGBChannelMapper.queryByGbDeviceIdsForIds(ChannelDataType.GB28181.value, deviceIds);
+        List<Integer> channelList = commonGBChannelMapper.queryByGbDeviceIdsForIds(ChannelDataType.GB28181, deviceIds);
         addChannels(platformId, channelList);
     }
 
     @Override
     @Transactional
     public void removeChannelByDevice(Integer platformId, List<Integer> deviceIds) {
-        List<Integer> channelList = commonGBChannelMapper.queryByGbDeviceIdsForIds(ChannelDataType.GB28181.value, deviceIds);
+        List<Integer> channelList = commonGBChannelMapper.queryByGbDeviceIdsForIds(ChannelDataType.GB28181, deviceIds);
         removeChannels(platformId, channelList);
     }
 
@@ -600,5 +600,13 @@ public class PlatformChannelServiceImpl implements IPlatformChannelService {
     @Override
     public List<CommonGBChannel> queryChannelByPlatformIdAndChannelIds(Integer platformId, List<Integer> channelIds) {
         return platformChannelMapper.queryShare(platformId, channelIds);
+    }
+
+    @Override
+    public List<Platform> queryByPlatformBySharChannelId(String channelDeviceId) {
+        CommonGBChannel commonGBChannel = commonGBChannelMapper.queryByDeviceId(channelDeviceId);
+        ArrayList<Integer> ids = new ArrayList<>();
+        ids.add(commonGBChannel.getGbId());
+        return platformChannelMapper.queryPlatFormListByChannelList(ids);
     }
 }

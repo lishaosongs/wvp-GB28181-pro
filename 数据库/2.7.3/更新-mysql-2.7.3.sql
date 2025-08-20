@@ -267,5 +267,37 @@ call wvp_20250319();
 DROP PROCEDURE wvp_20250319;
 DELIMITER ;
 
+/*
+* 20250319
+*/
+update wvp_record_plan_item set start = start * 30, stop = (stop + 1) * 30
+
+/*
+* 20250402
+*/
+DELIMITER //  -- 重定义分隔符避免分号冲突
+CREATE PROCEDURE `wvp_20250402`()
+BEGIN
+    IF NOT EXISTS (SELECT column_name FROM information_schema.STATISTICS
+                   WHERE TABLE_SCHEMA = (SELECT DATABASE()) and  table_name = 'wvp_device_channel' and INDEX_NAME = 'data_type')
+    THEN
+        create index data_type on wvp_device_channel (data_type);
+    END IF;
+    IF NOT EXISTS (SELECT column_name FROM information_schema.STATISTICS
+                   WHERE TABLE_SCHEMA = (SELECT DATABASE()) and  table_name = 'wvp_device_channel' and INDEX_NAME = 'data_device_id')
+    THEN
+        create index data_device_id on wvp_device_channel (data_device_id);
+    END IF;
+
+END; //
+call wvp_20250402();
+DROP PROCEDURE wvp_20250402;
+DELIMITER ;
+
+/**
+* 20250414
+*/
+alter table wvp_cloud_record modify time_len double precision;
+
 
 

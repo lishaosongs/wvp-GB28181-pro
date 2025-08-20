@@ -8,6 +8,7 @@ import com.genersoft.iot.vmp.utils.DateUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.ObjectUtils;
 
@@ -15,6 +16,7 @@ import org.springframework.util.ObjectUtils;
 @Data
 @Schema(description = "推流信息")
 @EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
 public class StreamPush extends CommonGBChannel implements Comparable<StreamPush>{
 
     /**
@@ -103,7 +105,8 @@ public class StreamPush extends CommonGBChannel implements Comparable<StreamPush
 
     private String uniqueKey;
 
-    private Integer dataType = ChannelDataType.STREAM_PUSH.value;
+    private Integer dataType = ChannelDataType.STREAM_PUSH;
+
 
     @Override
     public int compareTo(@NotNull StreamPush streamPushItem) {
@@ -142,7 +145,7 @@ public class StreamPush extends CommonGBChannel implements Comparable<StreamPush
         if (ObjectUtils.isEmpty(this.getGbName())) {
             this.setGbName( app+ "-" +stream);
         }
-        this.setDataType(ChannelDataType.STREAM_PUSH.value);
+        this.setDataType(ChannelDataType.STREAM_PUSH);
         this.setDataDeviceId(this.getId());
         return this;
     }

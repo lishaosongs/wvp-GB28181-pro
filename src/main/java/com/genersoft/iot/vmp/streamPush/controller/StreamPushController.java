@@ -2,6 +2,7 @@ package com.genersoft.iot.vmp.streamPush.controller;
 
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelReader;
+import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.alibaba.excel.read.metadata.ReadSheet;
 import com.genersoft.iot.vmp.common.enums.ChannelDataType;
 import com.genersoft.iot.vmp.conf.UserSetting;
@@ -35,8 +36,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -180,12 +184,21 @@ public class StreamPushController {
             ReadSheet readSheet = EasyExcel.readSheet(0).build();
             excelReader.read(readSheet);
             excelReader.finish();
+        }catch (ExcelDataConvertException e) {
+            log.error("通道导入失败：行： {}， 列： {}, 内容： {}", e.getRowIndex(), e.getColumnIndex(), e.getCellData().getStringValue());
+            RequestMessage msg = new RequestMessage();
+            msg.setKey(key);
+            WVPResult<Object> wvpResult = new WVPResult<>();
+            wvpResult.setCode(ErrorCode.ERROR100.getCode());
+            wvpResult.setMsg("数据异常: " + e.getRowIndex() +"行" + e.getColumnIndex() + "列, 内容：" + e.getCellData().getStringValue() );
+            msg.setData(wvpResult);
+            resultHolder.invokeAllResult(msg);
         }catch (Exception e) {
             log.warn("通道导入失败：", e);
             RequestMessage msg = new RequestMessage();
             msg.setKey(key);
             WVPResult<Object> wvpResult = new WVPResult<>();
-            wvpResult.setCode(-1);
+            wvpResult.setCode(ErrorCode.ERROR100.getCode());
             wvpResult.setMsg("通道导入失败: " + e.getMessage() );
             msg.setData(wvpResult);
             resultHolder.invokeAllResult(msg);
@@ -215,7 +228,7 @@ public class StreamPushController {
         if (!streamPushService.add(stream)) {
             throw new ControllerException(ErrorCode.ERROR100);
         }
-        stream.setDataType(ChannelDataType.STREAM_PUSH.value);
+        stream.setDataType(ChannelDataType.STREAM_PUSH);
         stream.setDataDeviceId(stream.getId());
         return stream;
     }
@@ -245,7 +258,7 @@ public class StreamPushController {
     @GetMapping(value = "/start")
     @ResponseBody
     @Operation(summary = "开始播放", security = @SecurityRequirement(name = JwtUtils.HEADER))
-    public DeferredResult<WVPResult<StreamContent>> start(Integer id){
+    public DeferredResult<WVPResult<StreamContent>> start(HttpServletRequest request, Integer id){
         Assert.notNull(id, "推流ID不可为NULL");
         DeferredResult<WVPResult<StreamContent>> result = new DeferredResult<>(userSetting.getPlayTimeout().longValue());
         result.onTimeout(()->{
@@ -254,6 +267,17 @@ public class StreamPushController {
         });
         streamPushPlayService.start(id, (code, msg, streamInfo) -> {
             if (code == 0 && streamInfo != null) {
+                if (userSetting.getUseSourceIpAsStreamIp()) {
+                    streamInfo=streamInfo.clone();//深拷贝
+                    String host;
+                    try {
+                        URL url=new URL(request.getRequestURL().toString());
+                        host=url.getHost();
+                    } catch (MalformedURLException e) {
+                        host=request.getLocalAddr();
+                    }
+                    streamInfo.changeStreamIp(host);
+                }
                 WVPResult<StreamContent> success = WVPResult.success(new StreamContent(streamInfo));
                 result.setResult(success);
             }

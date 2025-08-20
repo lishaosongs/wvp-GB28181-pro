@@ -160,30 +160,26 @@ public class GbChannelServiceImpl implements IGbChannelService {
             log.warn("[多个通道离线] 通道数量为0，更新失败");
             return 0;
         }
-        List<CommonGBChannel> onlineChannelList = commonGBChannelMapper.queryInListByStatus(commonGBChannelList, "ON");
-        if (onlineChannelList.isEmpty()) {
-            log.info("[多个通道离线] 更新失败, 参数内通道已经离线, 无需更新");
-            return 0;
-        }
+        log.info("[通道离线] 共 {} 个", commonGBChannelList.size());
         int limitCount = 1000;
         int result = 0;
-        if (onlineChannelList.size() > limitCount) {
-            for (int i = 0; i < onlineChannelList.size(); i += limitCount) {
+        if (commonGBChannelList.size() > limitCount) {
+            for (int i = 0; i < commonGBChannelList.size(); i += limitCount) {
                 int toIndex = i + limitCount;
-                if (i + limitCount > onlineChannelList.size()) {
-                    toIndex = onlineChannelList.size();
+                if (i + limitCount > commonGBChannelList.size()) {
+                    toIndex = commonGBChannelList.size();
                 }
-                result += commonGBChannelMapper.updateStatusForListById(onlineChannelList.subList(i, toIndex), "OFF");
+                result += commonGBChannelMapper.updateStatusForListById(commonGBChannelList.subList(i, toIndex), "OFF");
             }
         } else {
-            result += commonGBChannelMapper.updateStatusForListById(onlineChannelList, "OFF");
+            result += commonGBChannelMapper.updateStatusForListById(commonGBChannelList, "OFF");
         }
         if (result > 0) {
             try {
                 // 发送catalog
-                eventPublisher.catalogEventPublish(null, onlineChannelList, CatalogEvent.OFF);
+                eventPublisher.catalogEventPublish(null, commonGBChannelList, CatalogEvent.OFF);
             } catch (Exception e) {
-                log.warn("[多个通道离线] 发送失败，数量：{}", onlineChannelList.size(), e);
+                log.warn("[多个通道离线] 发送失败，数量：{}", commonGBChannelList.size(), e);
             }
         }
         return result;
@@ -214,32 +210,25 @@ public class GbChannelServiceImpl implements IGbChannelService {
             log.warn("[多个通道上线] 通道数量为0，更新失败");
             return 0;
         }
-        List<CommonGBChannel> offlineChannelList = commonGBChannelMapper.queryInListByStatus(commonGBChannelList, "OFF");
-        if (offlineChannelList.isEmpty()) {
-            log.warn("[多个通道上线] 更新失败, 参数内通道已经上线");
-            return 0;
-        }
         // 批量更新
         int limitCount = 1000;
         int result = 0;
-        if (offlineChannelList.size() > limitCount) {
-            for (int i = 0; i < offlineChannelList.size(); i += limitCount) {
+        if (commonGBChannelList.size() > limitCount) {
+            for (int i = 0; i < commonGBChannelList.size(); i += limitCount) {
                 int toIndex = i + limitCount;
-                if (i + limitCount > offlineChannelList.size()) {
-                    toIndex = offlineChannelList.size();
+                if (i + limitCount > commonGBChannelList.size()) {
+                    toIndex = commonGBChannelList.size();
                 }
-                result += commonGBChannelMapper.updateStatusForListById(offlineChannelList.subList(i, toIndex), "ON");
+                result += commonGBChannelMapper.updateStatusForListById(commonGBChannelList.subList(i, toIndex), "ON");
             }
         } else {
-            result += commonGBChannelMapper.updateStatusForListById(offlineChannelList, "ON");
+            result += commonGBChannelMapper.updateStatusForListById(commonGBChannelList, "ON");
         }
-        if (result > 0) {
-            try {
-                // 发送catalog
-                eventPublisher.catalogEventPublish(null, offlineChannelList, CatalogEvent.ON);
-            } catch (Exception e) {
-                log.warn("[多个通道上线] 发送失败，数量：{}", offlineChannelList.size(), e);
-            }
+        try {
+            // 发送catalog
+            eventPublisher.catalogEventPublish(null, commonGBChannelList, CatalogEvent.ON);
+        } catch (Exception e) {
+            log.warn("[多个通道上线] 发送失败，数量：{}", commonGBChannelList.size(), e);
         }
 
         return result;
@@ -377,12 +366,12 @@ public class GbChannelServiceImpl implements IGbChannelService {
             log.warn("[重置国标通道] 未找到对应Id的通道: id: {}", id);
             throw new ControllerException(ErrorCode.ERROR400);
         }
-        if (channel.getDataType() != ChannelDataType.GB28181.value) {
+        if (channel.getDataType() != ChannelDataType.GB28181) {
             log.warn("[重置国标通道] 非国标下级通道无法重置: id: {}", id);
             throw new ControllerException(ErrorCode.ERROR100.getCode(), "非国标下级通道无法重置");
         }
         // 这个多加一个参数,为了防止将非国标的通道通过此方法清空内容,导致意外发生
-        commonGBChannelMapper.reset(id, ChannelDataType.GB28181.value, channel.getDataDeviceId(), DateUtil.getNow());
+        commonGBChannelMapper.reset(id, ChannelDataType.GB28181, channel.getDataDeviceId(), DateUtil.getNow());
         CommonGBChannel channelNew = getOne(id);
         // 发送通过更新通知
         try {
@@ -505,7 +494,7 @@ public class GbChannelServiceImpl implements IGbChannelService {
 
     @Override
     public void addChannelToRegionByGbDevice(String civilCode, List<Integer> deviceIds) {
-        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181.value, deviceIds);
+        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181, deviceIds);
         if (channelList.isEmpty()) {
             throw new ControllerException(ErrorCode.ERROR100.getCode(), "所有通道Id不存在");
         }
@@ -526,7 +515,7 @@ public class GbChannelServiceImpl implements IGbChannelService {
 
     @Override
     public void deleteChannelToRegionByGbDevice(List<Integer> deviceIds) {
-        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181.value, deviceIds);
+        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181, deviceIds);
         if (channelList.isEmpty()) {
             throw new ControllerException(ErrorCode.ERROR100.getCode(), "所有通道Id不存在");
         }
@@ -643,7 +632,7 @@ public class GbChannelServiceImpl implements IGbChannelService {
     @Override
     @Transactional
     public void addChannelToGroupByGbDevice(String parentId, String businessGroup, List<Integer> deviceIds) {
-        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181.value, deviceIds);
+        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181, deviceIds);
         if (channelList.isEmpty()) {
             throw new ControllerException(ErrorCode.ERROR100.getCode(), "所有通道Id不存在");
         }
@@ -671,7 +660,7 @@ public class GbChannelServiceImpl implements IGbChannelService {
 
     @Override
     public void deleteChannelToGroupByGbDevice(List<Integer> deviceIds) {
-        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181.value, deviceIds);
+        List<CommonGBChannel> channelList = commonGBChannelMapper.queryByGbDeviceIds(ChannelDataType.GB28181, deviceIds);
         if (channelList.isEmpty()) {
             throw new ControllerException(ErrorCode.ERROR100.getCode(), "所有通道Id不存在");
         }
@@ -713,7 +702,7 @@ public class GbChannelServiceImpl implements IGbChannelService {
 
     @Override
     public List<CommonGBChannel> queryListByStreamPushList(List<StreamPush> streamPushList) {
-        return commonGBChannelMapper.queryListByStreamPushList(ChannelDataType.STREAM_PUSH.value, streamPushList);
+        return commonGBChannelMapper.queryListByStreamPushList(ChannelDataType.STREAM_PUSH, streamPushList);
     }
 
     @Override
@@ -726,25 +715,6 @@ public class GbChannelServiceImpl implements IGbChannelService {
         }
         List<CommonGBChannel> all = commonGBChannelMapper.queryList(query, online,  hasRecordPlan, channelType);
         return new PageInfo<>(all);
-    }
-
-    @Override
-    public void queryRecordInfo(CommonGBChannel channel, String startTime, String endTime, ErrorCallback<RecordInfo> callback) {
-        if (channel.getDataType() == ChannelDataType.GB28181.value) {
-            deviceChannelService.queryRecordInfo(channel, startTime, endTime, callback);
-        } else if (channel.getDataType() == ChannelDataType.STREAM_PROXY.value) {
-            // 拉流代理
-            log.warn("[下载通用通道录像] 不支持下载拉流代理的录像： {}({})", channel.getGbName(), channel.getGbDeviceId());
-            throw new PlayException(Response.FORBIDDEN, "forbidden");
-        } else if (channel.getDataType() == ChannelDataType.STREAM_PUSH.value) {
-            // 推流
-            log.warn("[下载通用通道录像] 不支持下载推流的录像： {}({})", channel.getGbName(), channel.getGbDeviceId());
-            throw new PlayException(Response.FORBIDDEN, "forbidden");
-        } else {
-            // 通道数据异常
-            log.error("[回放通用通道] 通道数据异常，无法识别通道来源： {}({})", channel.getGbName(), channel.getGbDeviceId());
-            throw new PlayException(Response.SERVER_INTERNAL_ERROR, "server internal error");
-        }
     }
 
     @Override
@@ -800,5 +770,22 @@ public class GbChannelServiceImpl implements IGbChannelService {
             return;
         }
         commonGBChannelMapper.updateGpsByDeviceId(gpsMsgInfoList);
+    }
+
+    @Transactional
+    @Override
+    public void updateGPS(List<CommonGBChannel> commonGBChannels) {
+        int limitCount = 1000;
+        if (commonGBChannels.size() > limitCount) {
+            for (int i = 0; i < commonGBChannels.size(); i += limitCount) {
+                int toIndex = i + limitCount;
+                if (i + limitCount > commonGBChannels.size()) {
+                    toIndex = commonGBChannels.size();
+                }
+                commonGBChannelMapper.updateGps(commonGBChannels.subList(i, toIndex));
+            }
+        } else {
+            commonGBChannelMapper.updateGps(commonGBChannels);
+        }
     }
 }

@@ -11,9 +11,6 @@ import com.genersoft.iot.vmp.gb28181.bean.SyncStatus;
 import com.genersoft.iot.vmp.gb28181.service.IDeviceChannelService;
 import com.genersoft.iot.vmp.gb28181.service.IDeviceService;
 import com.genersoft.iot.vmp.gb28181.service.IInviteStreamService;
-import com.genersoft.iot.vmp.gb28181.task.ISubscribeTask;
-import com.genersoft.iot.vmp.gb28181.task.impl.CatalogSubscribeTask;
-import com.genersoft.iot.vmp.gb28181.task.impl.MobilePositionSubscribeTask;
 import com.genersoft.iot.vmp.gb28181.transmit.callback.DeferredResultHolder;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.ISIPCommander;
 import com.genersoft.iot.vmp.service.redisMsg.IRedisRpcService;
@@ -40,9 +37,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 
 @Tag(name  = "国标设备查询", description = "国标设备查询")
 @SuppressWarnings("rawtypes")
@@ -79,7 +73,7 @@ public class DeviceQuery {
 	@Parameter(name = "deviceId", description = "设备国标编号", required = true)
 	@GetMapping("/devices/{deviceId}")
 	public Device devices(@PathVariable String deviceId){
-		
+
 		return deviceService.getDeviceByDeviceId(deviceId);
 	}
 
@@ -119,6 +113,19 @@ public class DeviceQuery {
 		return deviceChannelService.queryChannelsByDeviceId(deviceId, query, channelType, online, page, count);
 	}
 
+	@GetMapping("/streams")
+	@Operation(summary = "分页查询存在流的通道", security = @SecurityRequirement(name = JwtUtils.HEADER))
+	@Parameter(name = "page", description = "当前页", required = true)
+	@Parameter(name = "count", description = "每页查询数量", required = true)
+	@Parameter(name = "query", description = "查询内容")
+	public PageInfo<DeviceChannel> streamChannels(int page, int count,
+												  @RequestParam(required = false) String query) {
+		if (ObjectUtils.isEmpty(query)) {
+			query = null;
+		}
+
+		return deviceChannelService.queryChannels(query, true, null, null, true, page, count);
+	}
 
 	@Operation(summary = "同步设备通道", security = @SecurityRequirement(name = JwtUtils.HEADER))
 	@Parameter(name = "deviceId", description = "设备国标编号", required = true)
@@ -129,7 +136,12 @@ public class DeviceQuery {
 			log.debug("设备通道信息同步API调用，deviceId：" + deviceId);
 		}
 		Device device = deviceService.getDeviceByDeviceId(deviceId);
-
+		if (device.getRegisterTime() == null) {
+			WVPResult<SyncStatus> wvpResult = new WVPResult<>();
+			wvpResult.setCode(ErrorCode.ERROR100.getCode());
+			wvpResult.setMsg("设备尚未注册过");
+			return wvpResult;
+		}
 		return deviceService.devicesSync(device);
 
 	}
@@ -144,28 +156,10 @@ public class DeviceQuery {
 		}
 
 		// 清除redis记录
-		boolean isSuccess = deviceService.delete(deviceId);
-		if (isSuccess) {
-			inviteStreamService.clearInviteInfo(deviceId);
-			// 停止此设备的订阅更新
-			Set<String> allKeys = dynamicTask.getAllKeys();
-			for (String key : allKeys) {
-				if (key.startsWith(deviceId)) {
-					Runnable runnable = dynamicTask.get(key);
-					if (runnable instanceof ISubscribeTask) {
-						ISubscribeTask subscribeTask = (ISubscribeTask) runnable;
-						subscribeTask.stop(null);
-					}
-					dynamicTask.stop(key);
-				}
-			}
-			JSONObject json = new JSONObject();
-			json.put("deviceId", deviceId);
-			return json.toString();
-		} else {
-			log.warn("设备信息删除API调用失败！");
-			throw new ControllerException(ErrorCode.ERROR100.getCode(), "设备信息删除API调用失败！");
-		}
+		deviceService.delete(deviceId);
+		JSONObject json = new JSONObject();
+		json.put("deviceId", deviceId);
+		return json.toString();
 	}
 
 	@Operation(summary = "分页查询子目录通道", security = @SecurityRequirement(name = JwtUtils.HEADER))
@@ -224,16 +218,19 @@ public class DeviceQuery {
 			"UDP（udp传输），TCP-ACTIVE（tcp主动模式），TCP-PASSIVE（tcp被动模式）", required = true)
 	@PostMapping("/transport/{deviceId}/{streamMode}")
 	public void updateTransport(@PathVariable String deviceId, @PathVariable String streamMode){
+		Assert.isTrue(streamMode.equalsIgnoreCase("UDP")
+				|| streamMode.equalsIgnoreCase("TCP-ACTIVE")
+				|| streamMode.equalsIgnoreCase("TCP-PASSIVE"), "数据流传输模式, 取值：UDP/TCP-ACTIVE/TCP-PASSIVE");
 		Device device = deviceService.getDeviceByDeviceId(deviceId);
-		device.setStreamMode(streamMode);
+		device.setStreamMode(streamMode.toUpperCase());
 		deviceService.updateCustomDevice(device);
 	}
 
 
 	@Operation(summary = "添加设备信息", security = @SecurityRequirement(name = JwtUtils.HEADER))
 	@Parameter(name = "device", description = "设备", required = true)
-	@PostMapping("/device/add/")
-	public void addDevice(Device device){
+	@PostMapping("/device/add")
+	public void addDevice(@RequestBody Device device){
 
 		if (device == null || device.getDeviceId() == null) {
 			throw new ControllerException(ErrorCode.ERROR400);
@@ -244,14 +241,14 @@ public class DeviceQuery {
 		if (exist) {
 			throw new ControllerException(ErrorCode.ERROR100.getCode(), "设备编号已存在");
 		}
-		deviceService.addDevice(device);
+		deviceService.addCustomDevice(device);
 	}
 
 
 	@Operation(summary = "更新设备信息", security = @SecurityRequirement(name = JwtUtils.HEADER))
 	@Parameter(name = "device", description = "设备", required = true)
-	@PostMapping("/device/update/")
-	public void updateDevice(Device device){
+	@PostMapping("/device/update")
+	public void updateDevice(@RequestBody Device device){
 		if (device == null || device.getDeviceId() == null || device.getId() <= 0) {
 			throw new ControllerException(ErrorCode.ERROR400);
 		}
@@ -352,28 +349,6 @@ public class DeviceQuery {
 			wvpResult.setMsg(ErrorCode.SUCCESS.getMsg());
 			wvpResult.setData(channelSyncStatus);
 		}
-		return wvpResult;
-	}
-
-	@GetMapping("/{deviceId}/subscribe_info")
-	@Operation(summary = "获取设备的订阅状态", security = @SecurityRequirement(name = JwtUtils.HEADER))
-	@Parameter(name = "deviceId", description = "设备国标编号", required = true)
-	public WVPResult<Map<String, Integer>> getSubscribeInfo(@PathVariable String deviceId) {
-		Set<String> allKeys = dynamicTask.getAllKeys();
-		Map<String, Integer> dialogStateMap = new HashMap<>();
-		for (String key : allKeys) {
-			if (key.startsWith(deviceId)) {
-				ISubscribeTask subscribeTask = (ISubscribeTask)dynamicTask.get(key);
-				if (subscribeTask instanceof CatalogSubscribeTask) {
-					dialogStateMap.put("catalog", 1);
-				}else if (subscribeTask instanceof MobilePositionSubscribeTask) {
-					dialogStateMap.put("mobilePosition", 1);
-				}
-			}
-		}
-		WVPResult<Map<String, Integer>> wvpResult = new WVPResult<>();
-		wvpResult.setCode(0);
-		wvpResult.setData(dialogStateMap);
 		return wvpResult;
 	}
 

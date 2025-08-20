@@ -159,6 +159,8 @@ create table IF NOT EXISTS wvp_device_channel
     gps_speed                    double precision,
     gps_altitude                 double precision,
     gps_direction                double precision,
+    index (data_type),
+    index (data_device_id),
     constraint uk_wvp_unique_channel unique (gb_device_id)
 );
 
@@ -363,7 +365,7 @@ create table IF NOT EXISTS wvp_cloud_record
     file_path       character varying(500),
     collect         bool default false,
     file_size       bigint,
-    time_len        bigint
+    time_len        double precision
 );
 
 drop table IF EXISTS wvp_user;

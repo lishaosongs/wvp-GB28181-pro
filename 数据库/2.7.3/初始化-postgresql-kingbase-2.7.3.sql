@@ -162,6 +162,9 @@ create table IF NOT EXISTS wvp_device_channel
     constraint uk_wvp_unique_channel unique (gb_device_id)
 );
 
+CREATE INDEX idx_data_type ON wvp_device_channel (data_type);
+CREATE INDEX idx_data_device_id ON wvp_device_channel (data_device_id);
+
 drop table IF EXISTS wvp_media_server;
 create table IF NOT EXISTS wvp_media_server
 (
@@ -363,7 +366,7 @@ create table IF NOT EXISTS wvp_cloud_record
     file_path       character varying(500),
     collect         bool default false,
     file_size       int8,
-    time_len        int8
+    time_len        double precision
 );
 
 drop table IF EXISTS wvp_user;

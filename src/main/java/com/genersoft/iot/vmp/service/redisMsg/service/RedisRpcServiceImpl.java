@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -231,6 +232,9 @@ public class RedisRpcServiceImpl implements IRedisRpcService {
         RedisRpcRequest request = buildRequest("platform/update", platform);
         request.setToId(serverId);
         RedisRpcResponse response = redisRpcConfig.request(request, 40, TimeUnit.MILLISECONDS);
+        if(response == null) {
+            return false;
+        }
         return Boolean.parseBoolean(response.getBody().toString());
     }
 
@@ -403,7 +407,7 @@ public class RedisRpcServiceImpl implements IRedisRpcService {
     }
 
     @Override
-    public WVPResult<Object> queryPreset(String serverId, Device device, String channelId) {
+    public WVPResult<List<Preset>> queryPreset(String serverId, Device device, String channelId) {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("device", device.getDeviceId());
         jsonObject.put("channelId", channelId);

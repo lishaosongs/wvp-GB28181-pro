@@ -140,6 +140,9 @@ create table IF NOT EXISTS wvp_device_channel
     constraint uk_wvp_unique_channel unique (gb_device_id)
 );
 
+create index if not exists data_type on wvp_device_channel (data_type);
+create index if not exists data_device_id on wvp_device_channel (data_device_id);
+
 create table IF NOT EXISTS wvp_device_mobile_position
 (
     id              serial primary key,
@@ -385,3 +388,7 @@ alter table wvp_cloud_record alter folder  type varchar(500);
 alter table wvp_cloud_record alter file_path type varchar(500);
 update wvp_cloud_record set server_id = '你的服务ID';
 
+/**
+* 20250414
+*/
+alter table wvp_cloud_record modify time_len double precision;

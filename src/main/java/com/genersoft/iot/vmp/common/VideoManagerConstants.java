@@ -1,13 +1,13 @@
 package com.genersoft.iot.vmp.common;
 
-/**    
- * @description: 定义常量   
+/**
+ * @description: 定义常量
  * @author: swwheihei
- * @date:   2019年5月30日 下午3:04:04   
- *   
+ * @date:   2019年5月30日 下午3:04:04
+ *
  */
 public class VideoManagerConstants {
-	
+
 	public static final String WVP_SERVER_PREFIX = "VMP_SIGNALLING_SERVER_INFO_";
 
 	public static final String WVP_SERVER_LIST = "VMP_SERVER_LIST";
@@ -21,10 +21,6 @@ public class VideoManagerConstants {
 	public static final String DEVICE_PREFIX = "VMP_DEVICE_INFO";
 
 	public static final String INVITE_PREFIX = "VMP_GB_INVITE_INFO";
-
-	public static final String PLATFORM_CATCH_PREFIX = "VMP_PLATFORM_CATCH_";
-
-	public static final String PLATFORM_REGISTER_INFO_PREFIX = "VMP_PLATFORM_REGISTER_INFO_";
 
 	public static final String SEND_RTP_PORT = "VM_SEND_RTP_PORT:";
 	public static final String SEND_RTP_INFO_CALLID = "VMP_SEND_RTP_INFO:CALL_ID:";
@@ -50,7 +46,6 @@ public class VideoManagerConstants {
 	public static final String SYSTEM_INFO_DISK_PREFIX = "VMP_SYSTEM_INFO_DISK_";
 	public static final String BROADCAST_WAITE_INVITE = "task_broadcast_waite_invite_";
 
-	public static final String REGISTER_EXPIRE_TASK_KEY_PREFIX = "VMP_device_register_expire_";
 	public static final String PUSH_STREAM_LIST = "VMP_PUSH_STREAM_LIST_";
 	public static final String WAITE_SEND_PUSH_STREAM = "VMP_WAITE_SEND_PUSH_STREAM:";
 	public static final String START_SEND_PUSH_STREAM = "VMP_START_SEND_PUSH_STREAM:";
@@ -157,5 +152,16 @@ public class VideoManagerConstants {
 	 * 设备录像信息结果前缀
 	 */
 	public static final String REDIS_RECORD_INFO_RES_COUNT_PRE = "GB_RECORD_INFO_RES_COUNT:";
+
+	//**************************    1078  ****************************************
+
+
+	public static final String INVITE_INFO_1078_POSITION = "INVITE_INFO_1078_POSITION:";
+	public static final String INVITE_INFO_1078_PLAY = "INVITE_INFO_1078_PLAY:";
+	public static final String INVITE_INFO_1078_PLAYBACK = "INVITE_INFO_1078_PLAYBACK:";
+	public static final String INVITE_INFO_1078_TALK = "INVITE_INFO_1078_TALK:";
+
+
+	public static final String RECORD_LIST_1078 = "RECORD_LIST_1078:";
 
 }

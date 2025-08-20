@@ -23,7 +23,6 @@ import com.genersoft.iot.vmp.gb28181.transmit.cmd.ISIPCommander;
 import com.genersoft.iot.vmp.gb28181.utils.SipUtils;
 import com.genersoft.iot.vmp.service.bean.ErrorCallback;
 import com.genersoft.iot.vmp.service.redisMsg.IRedisRpcPlayService;
-import com.genersoft.iot.vmp.service.bean.ErrorCallback;
 import com.genersoft.iot.vmp.storager.IRedisCatchStorage;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.vmanager.bean.ErrorCode;
@@ -41,9 +40,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import javax.sip.InvalidArgumentException;
-import javax.sip.SipException;
-import java.text.ParseException;
 import javax.sip.InvalidArgumentException;
 import javax.sip.SipException;
 import javax.sip.message.Response;
@@ -117,89 +113,90 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
 
     @Override
     public int updateChannels(Device device, List<DeviceChannel> channels) {
+        if (CollectionUtils.isEmpty(channels)) {
+            return 0;
+        }
         List<DeviceChannel> addChannels = new ArrayList<>();
         List<DeviceChannel> updateChannels = new ArrayList<>();
         HashMap<String, DeviceChannel> channelsInStore = new HashMap<>();
         int result = 0;
-        if (channels != null && !channels.isEmpty()) {
-            List<DeviceChannel> channelList = channelMapper.queryChannelsByDeviceDbId(device.getId());
-            if (channelList.isEmpty()) {
-                for (DeviceChannel channel : channels) {
-                    channel.setDataDeviceId(device.getId());
-                    InviteInfo inviteInfo = inviteStreamService.getInviteInfoByDeviceAndChannel(InviteSessionType.PLAY, channel.getId());
-                    if (inviteInfo != null && inviteInfo.getStreamInfo() != null) {
-                        channel.setStreamId(inviteInfo.getStreamInfo().getStream());
-                    }
-                    String now = DateUtil.getNow();
+        List<DeviceChannel> channelList = channelMapper.queryChannelsByDeviceDbId(device.getId());
+        if (channelList.isEmpty()) {
+            for (DeviceChannel channel : channels) {
+                channel.setDataDeviceId(device.getId());
+                InviteInfo inviteInfo = inviteStreamService.getInviteInfoByDeviceAndChannel(InviteSessionType.PLAY, channel.getId());
+                if (inviteInfo != null && inviteInfo.getStreamInfo() != null) {
+                    channel.setStreamId(inviteInfo.getStreamInfo().getStream());
+                }
+                String now = DateUtil.getNow();
+                channel.setUpdateTime(now);
+                channel.setCreateTime(now);
+                addChannels.add(channel);
+            }
+        }else {
+            for (DeviceChannel deviceChannel : channelList) {
+                channelsInStore.put(deviceChannel.getDataDeviceId() + deviceChannel.getDeviceId(), deviceChannel);
+            }
+            for (DeviceChannel channel : channels) {
+                InviteInfo inviteInfo = inviteStreamService.getInviteInfoByDeviceAndChannel(InviteSessionType.PLAY, channel.getId());
+                if (inviteInfo != null && inviteInfo.getStreamInfo() != null) {
+                    channel.setStreamId(inviteInfo.getStreamInfo().getStream());
+                }
+                String now = DateUtil.getNow();
+                channel.setUpdateTime(now);
+                DeviceChannel deviceChannelInDb = channelsInStore.get(channel.getDataDeviceId() + channel.getDeviceId());
+                if ( deviceChannelInDb != null) {
+                    channel.setId(deviceChannelInDb.getId());
                     channel.setUpdateTime(now);
+                    updateChannels.add(channel);
+                }else {
                     channel.setCreateTime(now);
+                    channel.setUpdateTime(now);
                     addChannels.add(channel);
                 }
-            }else {
-                for (DeviceChannel deviceChannel : channelList) {
-                    channelsInStore.put(deviceChannel.getDataDeviceId() + deviceChannel.getDeviceId(), deviceChannel);
-                }
-                for (DeviceChannel channel : channels) {
-                    InviteInfo inviteInfo = inviteStreamService.getInviteInfoByDeviceAndChannel(InviteSessionType.PLAY, channel.getId());
-                    if (inviteInfo != null && inviteInfo.getStreamInfo() != null) {
-                        channel.setStreamId(inviteInfo.getStreamInfo().getStream());
-                    }
-                    String now = DateUtil.getNow();
-                    channel.setUpdateTime(now);
-                    DeviceChannel deviceChannelInDb = channelsInStore.get(channel.getDataDeviceId() + channel.getDeviceId());
-                    if ( deviceChannelInDb != null) {
-                        channel.setId(deviceChannelInDb.getId());
-                        channel.setUpdateTime(now);
-                        updateChannels.add(channel);
-                    }else {
-                        channel.setCreateTime(now);
-                        channel.setUpdateTime(now);
-                        addChannels.add(channel);
-                    }
-                }
             }
-            Set<String> channelSet = new HashSet<>();
-            // 滤重
-            List<DeviceChannel> addChannelList = new ArrayList<>();
-            List<DeviceChannel> updateChannelList = new ArrayList<>();
-            addChannels.forEach(channel -> {
-                if (channelSet.add(channel.getDeviceId())) {
-                    addChannelList.add(channel);
-                }
-            });
-            channelSet.clear();
-            updateChannels.forEach(channel -> {
-                if (channelSet.add(channel.getDeviceId())) {
-                    updateChannelList.add(channel);
-                }
-            });
+        }
+        Set<String> channelSet = new HashSet<>();
+        // 滤重
+        List<DeviceChannel> addChannelList = new ArrayList<>();
+        List<DeviceChannel> updateChannelList = new ArrayList<>();
+        addChannels.forEach(channel -> {
+            if (channelSet.add(channel.getDeviceId())) {
+                addChannelList.add(channel);
+            }
+        });
+        channelSet.clear();
+        updateChannels.forEach(channel -> {
+            if (channelSet.add(channel.getDeviceId())) {
+                updateChannelList.add(channel);
+            }
+        });
 
-            int limitCount = 500;
-            if (!addChannelList.isEmpty()) {
-                if (addChannelList.size() > limitCount) {
-                    for (int i = 0; i < addChannelList.size(); i += limitCount) {
-                        int toIndex = i + limitCount;
-                        if (i + limitCount > addChannelList.size()) {
-                            toIndex = addChannelList.size();
-                        }
-                        result += channelMapper.batchAdd(addChannelList.subList(i, toIndex));
+        int limitCount = 500;
+        if (!addChannelList.isEmpty()) {
+            if (addChannelList.size() > limitCount) {
+                for (int i = 0; i < addChannelList.size(); i += limitCount) {
+                    int toIndex = i + limitCount;
+                    if (i + limitCount > addChannelList.size()) {
+                        toIndex = addChannelList.size();
                     }
-                }else {
-                    result += channelMapper.batchAdd(addChannelList);
+                    result += channelMapper.batchAdd(addChannelList.subList(i, toIndex));
                 }
+            }else {
+                result += channelMapper.batchAdd(addChannelList);
             }
-            if (!updateChannelList.isEmpty()) {
-                if (updateChannelList.size() > limitCount) {
-                    for (int i = 0; i < updateChannelList.size(); i += limitCount) {
-                        int toIndex = i + limitCount;
-                        if (i + limitCount > updateChannelList.size()) {
-                            toIndex = updateChannelList.size();
-                        }
-                        result += channelMapper.batchUpdate(updateChannelList.subList(i, toIndex));
+        }
+        if (!updateChannelList.isEmpty()) {
+            if (updateChannelList.size() > limitCount) {
+                for (int i = 0; i < updateChannelList.size(); i += limitCount) {
+                    int toIndex = i + limitCount;
+                    if (i + limitCount > updateChannelList.size()) {
+                        toIndex = updateChannelList.size();
                     }
-                }else {
-                    result += channelMapper.batchUpdate(updateChannelList);
+                    result += channelMapper.batchUpdate(updateChannelList.subList(i, toIndex));
                 }
+            }else {
+                result += channelMapper.batchUpdate(updateChannelList);
             }
         }
         return result;
@@ -227,7 +224,6 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
 
     @Override
     public List<Device> getDeviceByChannelId(String channelId) {
-
         return channelMapper.getDeviceByChannelDeviceId(channelId);
     }
 
@@ -442,7 +438,7 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
             deviceMobilePositionMapper.insertNewPosition(mobilePosition);
         }
 
-        if (deviceChannel.getDeviceId().equals(deviceChannel.getDeviceId())) {
+        if (deviceChannel.getDeviceId().equals(device.getDeviceId())) {
             deviceChannel.setDeviceId(null);
         }
         if (deviceChannel.getGpsTime() == null) {
@@ -577,7 +573,7 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
                 deviceChannel.setStreamId(channelInDb.getStreamId());
                 deviceChannel.setHasAudio(channelInDb.isHasAudio());
                 deviceChannel.setId(channelInDb.getId());
-                if (channelInDb.getStatus() != null && channelInDb.getStatus().equalsIgnoreCase(deviceChannel.getStatus())){
+                if (channelInDb.getStatus() != null && !channelInDb.getStatus().equalsIgnoreCase(deviceChannel.getStatus())){
                     List<Platform> platformList = platformChannelMapper.queryParentPlatformByChannelId(deviceChannel.getDeviceId());
                     if (!CollectionUtils.isEmpty(platformList)){
                         platformList.forEach(platform->{
@@ -700,7 +696,7 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
                     .replaceAll("%", "/%")
                     .replaceAll("_", "/_");
         }
-        List<DeviceChannel> all = channelMapper.queryChannels(deviceDbId, civilCode, businessGroupId, parentId, query, channelType, online,null);
+        List<DeviceChannel> all = channelMapper.queryChannels(deviceDbId, civilCode, businessGroupId, parentId, query, false, channelType, online, null, null);
         return new PageInfo<>(all);
     }
 
@@ -721,7 +717,19 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
                     .replaceAll("_", "/_");
         }
         PageHelper.startPage(page, count);
-        List<DeviceChannel> all = channelMapper.queryChannels(device.getId(), null,null, null, query, hasSubChannel, online,null);
+        List<DeviceChannel> all = channelMapper.queryChannels(device.getId(), null, null, null, query, false, hasSubChannel, online, null, null);
+        return new PageInfo<>(all);
+    }
+
+    @Override
+    public PageInfo<DeviceChannel> queryChannels(String query, Boolean queryParent, Boolean hasSubChannel, Boolean online, Boolean hasStream, int page, int count) {
+        PageHelper.startPage(page, count);
+        if (query != null) {
+            query = query.replaceAll("/", "//")
+                    .replaceAll("%", "/%")
+                    .replaceAll("_", "/_");
+        }
+        List<DeviceChannel> all = channelMapper.queryChannels(null, null, null, null, query, queryParent, hasSubChannel, online, null, hasStream);
         return new PageInfo<>(all);
     }
 
@@ -772,7 +780,7 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
 
     @Override
     public void addChannel(DeviceChannel channel) {
-        channel.setDataType(ChannelDataType.GB28181.value);
+        channel.setDataType(ChannelDataType.GB28181);
         channel.setDataDeviceId(channel.getDataDeviceId());
         channelMapper.add(channel);
     }
@@ -818,7 +826,7 @@ public class DeviceChannelServiceImpl implements IDeviceChannelService {
 
     @Override
     public void queryRecordInfo(CommonGBChannel channel, String startTime, String endTime, ErrorCallback<RecordInfo> callback) {
-        if (channel.getDataType() != ChannelDataType.GB28181.value){
+        if (channel.getDataType() != ChannelDataType.GB28181){
             // 只支持国标的语音喊话
             log.warn("[INFO 消息] 非国标设备， 通道ID： {}", channel.getGbId());
             callback.run(ErrorCode.ERROR100.getCode(), "非国标设备", null);

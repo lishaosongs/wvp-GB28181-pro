@@ -1,6 +1,7 @@
 package com.genersoft.iot.vmp.service.bean;
 
 import com.genersoft.iot.vmp.media.event.media.MediaRecordMp4Event;
+import com.genersoft.iot.vmp.media.event.media.MediaRecordProcessEvent;
 import com.genersoft.iot.vmp.utils.MediaServerUtils;
 import lombok.Data;
 
@@ -15,52 +16,52 @@ public class CloudRecordItem {
      * 主键
      */
     private int id;
-    
+
     /**
      * 应用名
      */
     private String app;
-    
+
     /**
      * 流
      */
     private String stream;
-    
+
     /**
      * 健全ID
      */
     private String callId;
-    
+
     /**
      * 开始时间
      */
     private long startTime;
-    
+
     /**
      * 结束时间
      */
     private long endTime;
-    
+
     /**
      * ZLM Id
      */
     private String mediaServerId;
-    
+
     /**
      * 文件名称
      */
     private String fileName;
-    
+
     /**
      * 文件路径
      */
     private String filePath;
-    
+
     /**
      * 文件夹
      */
     private String folder;
-    
+
     /**
      * 收藏，收藏的文件不移除
      */
@@ -70,16 +71,16 @@ public class CloudRecordItem {
      * 保留，收藏的文件不移除
      */
     private Boolean reserve;
-    
+
     /**
      * 文件大小
      */
     private long fileSize;
-    
+
     /**
      * 文件时长
      */
-    private long timeLen;
+    private double timeLen;
 
     /**
      * 所属服务ID
@@ -96,12 +97,22 @@ public class CloudRecordItem {
         cloudRecordItem.setFileSize(param.getRecordInfo().getFileSize());
         cloudRecordItem.setFilePath(param.getRecordInfo().getFilePath());
         cloudRecordItem.setMediaServerId(param.getMediaServer().getId());
-        cloudRecordItem.setTimeLen((long) param.getRecordInfo().getTimeLen() * 1000);
+        cloudRecordItem.setTimeLen(param.getRecordInfo().getTimeLen() * 1000);
         cloudRecordItem.setEndTime((param.getRecordInfo().getStartTime() + (long)param.getRecordInfo().getTimeLen()) * 1000);
         Map<String, String> paramsMap = MediaServerUtils.urlParamToMap(param.getRecordInfo().getParams());
         if (paramsMap.get("callId") != null) {
             cloudRecordItem.setCallId(paramsMap.get("callId"));
         }
+        return cloudRecordItem;
+    }
+
+    public static CloudRecordItem getInstance(MediaRecordProcessEvent event) {
+        CloudRecordItem cloudRecordItem = new CloudRecordItem();
+        cloudRecordItem.setApp(event.getApp());
+        cloudRecordItem.setStream(event.getStream());
+        cloudRecordItem.setFileName(event.getFileName());
+        cloudRecordItem.setMediaServerId(event.getMediaServer().getId());
+        cloudRecordItem.setTimeLen(event.getCurrentFileDuration() * 1000);
         return cloudRecordItem;
     }
 
